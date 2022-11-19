@@ -165,6 +165,31 @@ query LoggedUserMemberships($membershipName: String, $page: Int, $limit: Int) {
 fragment ActorFragment on Actor {  id type  preferredUsername  name }
 """)
 
+EVENTS_GQL = gql("""
+query {
+  events {
+    elements {
+      id,
+      url,
+      title,
+      description,
+      beginsOn,
+      endsOn,
+      status,
+      picture {
+        url
+      },
+      physicalAddress {
+        id,
+        description,
+        locality
+      }
+    }
+    total
+  }
+}
+""")
+
 # Low level Mobilizon API
 class Mobilizon():
 	__slots__ = 'client'
@@ -263,6 +288,13 @@ class Mobilizon():
 		memberships = data['loggedUser']['memberships']['elements']
 		return memberships
 
+	# events
+	
+	def list_events(self):
+		variables = { "limit": 200 }
+		data = self._publish(EVENTS_GQL, variables)
+		return data
+
 
 	# interns
 
@@ -306,6 +338,7 @@ class MobilizonClient():
 	def login(self, email, password, identity=0):
 		r = Mobilizon(self.endpoint, self.bearer).login(email, password)
 		self.bearer = r[0]
+		self.identity = identity
 		if not self.identity:
 			ids = self.identities()
 			self.identity = ids[0]['id']
@@ -315,6 +348,10 @@ class MobilizonClient():
 
 	def memberships(self):
 		return Mobilizon(self.endpoint, self.bearer).user_memberships()
+
+	def list_events(self):
+		print("ID", self.identity)
+		return Mobilizon(self.endpoint, self.bearer).list_events()
 
 	def create_event(self, title, beginsOn, endsOn=None, description="", actor_id=None, status="CONFIRMED", visibility="PRIVATE", joinOptions=None, draft=False, tags=None, picture=None, onlineAddress=None, phoneAddress=None, category=None, physicalAddress=None, options=None, contacts=None):
 		if not actor_id:
@@ -343,17 +380,29 @@ class MobilizonClient():
 		r = Mobilizon(self.endpoint, self.bearer).create_event(actor_id, filtered_variables)
 		return r['createEvent']
 
+	def create_event_from_dict(self, event, actor_id=None):
+		if not actor_id:
+			actor_id = self.identity
+		event["beginsOn"] = event["beginsOn"].isoformat()
+		event["endsOn"] = event["endsOn"].isoformat()
+		r = Mobilizon(self.endpoint, self.bearer).create_event(actor_id, event)
+		return r['createEvent']
+	
 
 if __name__ == "__main__":
 	import sys
 	email = sys.argv[1]
 	password = sys.argv[2]
 	endpoint = sys.argv[3]
+	identity = sys.argv[4]
 
 	client = MobilizonClient(endpoint)
-	client.login(email, password)
-	print ('Identities:', client.identities())
-	print ('Memberships:', client.memberships())
+	client.login(email, password, identity)
+	#print ('Identities:', client.identities())
+	#print ('Memberships:', client.memberships())
+	print ('Events:', client.list_events())
+	exit(0)
+	
 	start = datetime.now(pytz.timezone('Europe/Helsinki') )
 	event = client.create_event(title="Testi", description="Testaillan", beginsOn=start, visibility="PUBLIC")
 	print('Event created:', event)

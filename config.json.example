@@ -1,0 +1,7 @@
+{
+	"email": "user@host.org",
+	"password": "SECRET",
+	"endpoint": "https://mobilizon.org/api",
+	"identity": 0
+}
+
