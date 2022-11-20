@@ -449,17 +449,12 @@ if __name__ == "__main__":
 		print(' - ', id['id'], id['preferredUsername'])
 		if int(id['id']) == client.identity:
 			client.preferred_username = id['preferredUsername']
-	print('Preferred username', client.preferred_username)
+	print('Preferred username:', client.preferred_username)
 	print ('Memberships:', client.memberships())
 	events = client.list_events()
 	print ('Events:')
 	for event in events:
-		print(' - ', event.id, event.title, ':', event)
+		print(' - ', event.id, event.title)
 		if operation == 'deleteall':
 			print('Deleting:', client.delete_event(event.id))
-	exit(0)
-	
-	start = datetime.now(pytz.timezone('Europe/Helsinki') )
-	event = client.create_event(title="Testi", description="Testaillan", beginsOn=start, visibility="PUBLIC")
-	print('Event created:', event)
 
