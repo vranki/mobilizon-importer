@@ -14,6 +14,7 @@ from datetime import datetime
 import json
 import pytz
 from enum import Enum
+from modules.importmodule import MobilizonEvent
 
 # this class has been integrated in Tenacity after 7.0.0 release
 # see https://github.com/jd/tenacity/blame/c18dcfbf4b6a719f668f12fdb4999afaeef62648/tenacity/retry.py#L86
@@ -43,6 +44,15 @@ mutation createEvent($organizerActorId: ID!, $attributedToId: ID, $title: String
 """)
 
 UPDATE_GQL = gql("""
+mutation updateEvent($id: ID!, $title: String, $description: String, $beginsOn: DateTime, $endsOn: DateTime, $status: EventStatus, $visibility: EventVisibility, $joinOptions: EventJoinOptions, $draft: Boolean, $tags: [String], $onlineAddress: String, $phoneAddress: String, $organizerActorId: ID, $attributedToId: ID, $category: EventCategory, $physicalAddress: AddressInput, $options: EventOptionsInput, $contacts: [Contact]) {
+  updateEvent(eventId: $id, title: $title, description: $description, beginsOn: $beginsOn, endsOn: $endsOn, status: $status, visibility: $visibility, joinOptions: $joinOptions, draft: $draft, tags: $tags, onlineAddress: $onlineAddress, phoneAddress: $phoneAddress, organizerActorId: $organizerActorId, attributedToId: $attributedToId, category: $category, physicalAddress: $physicalAddress, options: $options, contacts: $contacts) {
+	id
+	uuid
+  }
+}
+""")
+
+UPDATE_GQL_ORIG = gql("""
 mutation updateEvent($id: ID!, $title: String, $description: String, $beginsOn: DateTime, $endsOn: DateTime, $status: EventStatus, $visibility: EventVisibility, $joinOptions: EventJoinOptions, $draft: Boolean, $tags: [String], $picture: PictureInput, $onlineAddress: String, $phoneAddress: String, $organizerActorId: ID, $attributedToId: ID, $category: String, $physicalAddress: AddressInput, $options: EventOptionsInput, $contacts: [Contact]) {
   updateEvent(eventId: $id, title: $title, description: $description, beginsOn: $beginsOn, endsOn: $endsOn, status: $status, visibility: $visibility, joinOptions: $joinOptions, draft: $draft, tags: $tags, picture: $picture, onlineAddress: $onlineAddress, phoneAddress: $phoneAddress, organizerActorId: $organizerActorId, attributedToId: $attributedToId, category: $category, physicalAddress: $physicalAddress, options: $options, contacts: $contacts) {
 	id
@@ -165,19 +175,38 @@ query LoggedUserMemberships($membershipName: String, $page: Int, $limit: Int) {
 fragment ActorFragment on Actor {  id type  preferredUsername  name }
 """)
 
-EVENTS_GQL = gql("""
-query FetchPerson($preferredUsername: String!) {
-  fetchPerson(preferredUsername: $preferredUsername) {
+EVENTS_LU_GQL = gql("""
+query {
+  loggedUser {
     id
-    organizedEvents(limit: 1000) {
-      elements {
-        id
-        title
-        beginsOn
+    actors {
+      id
+      name
+      organizedEvents(limit: 1000) {
+        elements {
+          id
+          title
+          description
+          beginsOn
+          endsOn
+          status
+          visibility
+          joinOptions
+          draft
+          tags {id slug}
+          picture {url}
+          onlineAddress
+          phoneAddress
+          category
+          physicalAddress {country}
+          options {isOnline}
+          contacts {name}
+        }
       }
     }
   }
 }
+
 """)
 
 # Low level Mobilizon API
@@ -280,10 +309,14 @@ class Mobilizon():
 
 	# events
 	
-	def list_events(self, preferred_username):
-		variables = { "limit": 200, "preferredUsername": preferred_username }
-		data = self._publish(EVENTS_GQL, variables)
-		return data
+	def list_events(self, identity):
+		variables = { }
+		data = self._publish(EVENTS_LU_GQL, variables)
+		data = data['loggedUser']['actors']
+		for actor in data:
+			if int(actor['id']) == identity:
+				return actor['organizedEvents']['elements']
+		return []
 
 
 	# interns
@@ -341,8 +374,12 @@ class MobilizonClient():
 		return Mobilizon(self.endpoint, self.bearer).user_memberships()
 
 	def list_events(self):
-		r = Mobilizon(self.endpoint, self.bearer).list_events(self.preferred_username)
-		return r['fetchPerson']['organizedEvents']['elements']
+		r = Mobilizon(self.endpoint, self.bearer).list_events(self.identity)
+		events = []
+		for event_dict in r:
+			events.append(MobilizonEvent.from_dict(event_dict))
+		
+		return events
 
 	def create_event(self, title, beginsOn, endsOn=None, description="", actor_id=None, status="CONFIRMED", visibility="PRIVATE", joinOptions=None, draft=False, tags=None, picture=None, onlineAddress=None, phoneAddress=None, category=None, physicalAddress=None, options=None, contacts=None):
 		if not actor_id:
@@ -381,7 +418,6 @@ class MobilizonClient():
 		if event.get("picture"):
 			media = { "url": event["picture"] }
 			event["picture"] = media
-		print(event)
 		r = Mobilizon(self.endpoint, self.bearer).create_event(actor_id, event)
 		return r['createEvent']
 
@@ -389,6 +425,13 @@ class MobilizonClient():
 		r = Mobilizon(self.endpoint, self.bearer).delete_event(self.identity, event_id)
 		return r['deleteEvent']['id']
 	
+	def update_event(self, event):
+		variables = event.get_dict()
+		variables["beginsOn"] = variables["beginsOn"].isoformat()
+		variables["endsOn"] = variables["endsOn"].isoformat()
+		r = Mobilizon(self.endpoint, self.bearer).update_event(self.identity, variables)
+		return r['updateEvent']['id']
+
 
 if __name__ == "__main__":
 	import sys
@@ -411,9 +454,9 @@ if __name__ == "__main__":
 	events = client.list_events()
 	print ('Events:')
 	for event in events:
-		print(' - ', event['id'], event['title'])
+		print(' - ', event.id, event.title, ':', event)
 		if operation == 'deleteall':
-			print('Deleting:', client.delete_event(event['id']))
+			print('Deleting:', client.delete_event(event.id))
 	exit(0)
 	
 	start = datetime.now(pytz.timezone('Europe/Helsinki') )

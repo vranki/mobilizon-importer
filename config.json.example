@@ -3,5 +3,8 @@
 	"password": "SECRET",
 	"endpoint": "https://mobilizon.org/api",
 	"identity": 0
+	"modules": {
+		"demopartynet": { "enabled": true }
+	}
 }
 

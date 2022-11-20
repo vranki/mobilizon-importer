@@ -11,11 +11,15 @@ import json
 import feedparser
 
 class DemopartyNet(ImportModule):
+	def name(self):
+    		return "demopartynet"
+
 	def get_events(self):
 		events = []
 		feed = feedparser.parse('https://www.demoparty.net/demoparties.xml')
 		for entry in feed.entries:
 			description = entry.summary[entry.summary.index('</dl>') + 5:-1]
+			description = description.strip()
 			thumbnail = None
 			try:
 				thumbnail = entry.media_thumbnail[0]["url"]

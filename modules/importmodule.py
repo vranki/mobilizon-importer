@@ -3,10 +3,11 @@
 from abc import ABC, abstractmethod
 
 class MobilizonEvent:
-	def __init__(self, title, beginsOn, endsOn=None, description="", actor_id=None, status="CONFIRMED", visibility="PRIVATE", joinOptions=None, draft=False, tags=None, picture=None, onlineAddress=None, phoneAddress=None, category=None, physicalAddress=None, options=None, contacts=None):
+	def __init__(self, title, beginsOn, endsOn=None, description="", actor_id=None, status="CONFIRMED", visibility="PRIVATE", joinOptions=None, draft=False, tags=None, picture=None, onlineAddress=None, phoneAddress=None, category=None, physicalAddress=None, options=None, contacts=None, id=None):
 
 		if not endsOn:
 			endsOn = beginsOn
+		self.id = id
 		self.title = title
 		self.beginsOn = beginsOn
 		self.endsOn = endsOn
@@ -27,6 +28,7 @@ class MobilizonEvent:
 
 	def get_dict(self):
 		variables = {
+			"id": self.id, 
 			"title": self.title, 
 			"description": self.description,
 			"beginsOn": self.beginsOn,
@@ -46,12 +48,20 @@ class MobilizonEvent:
 		}
 		filtered_variables = {k: v for k, v in variables.items() if v is not None}
 		return filtered_variables
+	@staticmethod
+	def from_dict(d):
+		return MobilizonEvent(d.get('title'), d.get('beginsOn'), d.get('endsOn'), d.get('description'), d.get('actor_id'), d.get('status'), d.get('visibility'), d.get('joinOptions'), d.get('draft'), d.get('tags'), d.get('picture'), d.get('onlineAddress'), d.get('phoneAddress'), d.get('category'), d.get('physicalAddress'), d.get('options'), d.get('contacts'), d.get('id'))
 
 class ImportModule(ABC):
-    def __init__(self):
-    	pass
+    def __init__(self, modules_config):
+    	self.enabled = modules_config[self.name()]['enabled']
     
     @abstractmethod
     def get_events(self):
     	pass
+
+    @abstractmethod
+    def name(self):
+    	return None
+   
 
