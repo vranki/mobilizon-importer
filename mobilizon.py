@@ -166,26 +166,16 @@ fragment ActorFragment on Actor {  id type  preferredUsername  name }
 """)
 
 EVENTS_GQL = gql("""
-query {
-  events {
-    elements {
-      id,
-      url,
-      title,
-      description,
-      beginsOn,
-      endsOn,
-      status,
-      picture {
-        url
-      },
-      physicalAddress {
-        id,
-        description,
-        locality
+query FetchPerson($preferredUsername: String!) {
+  fetchPerson(preferredUsername: $preferredUsername) {
+    id
+    organizedEvents(limit: 1000) {
+      elements {
+        id
+        title
+        beginsOn
       }
     }
-    total
   }
 }
 """)
@@ -290,8 +280,8 @@ class Mobilizon():
 
 	# events
 	
-	def list_events(self):
-		variables = { "limit": 200 }
+	def list_events(self, preferred_username):
+		variables = { "limit": 200, "preferredUsername": preferred_username }
 		data = self._publish(EVENTS_GQL, variables)
 		return data
 
@@ -334,6 +324,7 @@ class MobilizonClient():
 		self.endpoint = endpoint
 		self.bearer = bearer
 		self.identity = 0
+		self.preferred_username = None
 
 	def login(self, email, password, identity=0):
 		r = Mobilizon(self.endpoint, self.bearer).login(email, password)
@@ -350,8 +341,8 @@ class MobilizonClient():
 		return Mobilizon(self.endpoint, self.bearer).user_memberships()
 
 	def list_events(self):
-		print("ID", self.identity)
-		return Mobilizon(self.endpoint, self.bearer).list_events()
+		r = Mobilizon(self.endpoint, self.bearer).list_events(self.preferred_username)
+		return r['fetchPerson']['organizedEvents']['elements']
 
 	def create_event(self, title, beginsOn, endsOn=None, description="", actor_id=None, status="CONFIRMED", visibility="PRIVATE", joinOptions=None, draft=False, tags=None, picture=None, onlineAddress=None, phoneAddress=None, category=None, physicalAddress=None, options=None, contacts=None):
 		if not actor_id:
@@ -385,22 +376,44 @@ class MobilizonClient():
 			actor_id = self.identity
 		event["beginsOn"] = event["beginsOn"].isoformat()
 		event["endsOn"] = event["endsOn"].isoformat()
+		
+		# TODO: Doesn't work! Don't use picture.
+		if event.get("picture"):
+			media = { "url": event["picture"] }
+			event["picture"] = media
+		print(event)
 		r = Mobilizon(self.endpoint, self.bearer).create_event(actor_id, event)
 		return r['createEvent']
+
+	def delete_event(self, event_id):
+		r = Mobilizon(self.endpoint, self.bearer).delete_event(self.identity, event_id)
+		return r['deleteEvent']['id']
 	
 
 if __name__ == "__main__":
 	import sys
-	email = sys.argv[1]
-	password = sys.argv[2]
-	endpoint = sys.argv[3]
-	identity = sys.argv[4]
+	operation = sys.argv[1]
+	email = sys.argv[2]
+	password = sys.argv[3]
+	endpoint = sys.argv[4]
+	identity = int(sys.argv[5])
 
 	client = MobilizonClient(endpoint)
 	client.login(email, password, identity)
-	#print ('Identities:', client.identities())
-	#print ('Memberships:', client.memberships())
-	print ('Events:', client.list_events())
+	identities = client.identities()
+	print ('Identities:')
+	for id in identities:
+		print(' - ', id['id'], id['preferredUsername'])
+		if int(id['id']) == client.identity:
+			client.preferred_username = id['preferredUsername']
+	print('Preferred username', client.preferred_username)
+	print ('Memberships:', client.memberships())
+	events = client.list_events()
+	print ('Events:')
+	for event in events:
+		print(' - ', event['id'], event['title'])
+		if operation == 'deleteall':
+			print('Deleting:', client.delete_event(event['id']))
 	exit(0)
 	
 	start = datetime.now(pytz.timezone('Europe/Helsinki') )
