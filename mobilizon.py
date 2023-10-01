@@ -362,11 +362,14 @@ class MobilizonClient():
 	def login(self, email, password, identity=0):
 		r = Mobilizon(self.endpoint, self.bearer).login(email, password)
 		self.bearer = r[0]
+		self.set_identity(identity)
+	
+	def set_identity(self, identity=0):
 		self.identity = identity
 		if not self.identity:
 			ids = self.identities()
 			self.identity = ids[0]['id']
-	
+
 	def identities(self):
 		return Mobilizon(self.endpoint, self.bearer).user_identities()
 

@@ -12,7 +12,7 @@ import feedparser
 
 class DemopartyNet(ImportModule):
 	def name(self):
-    		return "demopartynet"
+			return "demopartynet"
 
 	def get_events(self):
 		events = []
@@ -29,7 +29,8 @@ class DemopartyNet(ImportModule):
 			dateformat = '%a, %d %b %Y %H:%M:%S %z'
 			beginsOn = datetime.strptime(entry.demopartynet_startdate, dateformat)
 			endsOn = datetime.strptime(entry.demopartynet_enddate, dateformat)
-			me = MobilizonEvent(title=entry.title, beginsOn=beginsOn, endsOn=endsOn, description=description, onlineAddress=entry.demopartynet_url, category="PARTY", visibility="PUBLIC")
+			print(entry.id, entry.title, entry.link)
+			me = MobilizonEvent(title=entry.title, beginsOn=beginsOn, endsOn=endsOn, description=description, onlineAddress=entry.link, category="PARTY", visibility="PUBLIC")
 			# , picture=thumbnail , physicalAddress=entry.demopartynet_country (don't work yet)
 			events.append(me)
 		return events
@@ -37,4 +38,3 @@ class DemopartyNet(ImportModule):
 if __name__ == "__main__":
 	dpn = DemopartyNet()
 	dpn.get_events()
-

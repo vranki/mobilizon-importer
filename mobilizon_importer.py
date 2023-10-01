@@ -3,6 +3,7 @@
 import json
 from mobilizon import MobilizonClient
 from modules.demopartynet import DemopartyNet
+from modules.tampere_events import TampereEvents
 
 def is_same_event(event1, event2):
 	if event1.title == event2.title:
@@ -47,21 +48,25 @@ def handle_events(new_events, existing_events):
 if __name__ == "__main__":
 	config = None
 	with open('config.json') as json_file:
-	    config = json.load(json_file)
+		config = json.load(json_file)
 	print(config)
 
 	client = MobilizonClient(config["endpoint"])
-	client.login(config["email"], config["password"], config["identity"])
-	existing_events = client.list_events()
-	
+
 	dpn = DemopartyNet(config['modules'])
+	te = TampereEvents(config['modules'])
 
 	modules = []
 	if dpn.enabled:
 		modules.append(dpn)
+	if te.enabled:
+		modules.append(te)
 
 	for module in modules:
-		print('Handling module', module.name(), '..')
+		identity = module.get_identity()
+		print('Handling module', module.name(), 'as', identity, '..')
+		client.login(config["email"], config["password"], identity)
+		existing_events = client.list_events()
 		events = module.get_events()
-		handle_events(events, existing_events)
-
+		if not config['dry_run']:
+			handle_events(events, existing_events)

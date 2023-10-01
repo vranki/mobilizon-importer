@@ -53,15 +53,23 @@ class MobilizonEvent:
 		return MobilizonEvent(d.get('title'), d.get('beginsOn'), d.get('endsOn'), d.get('description'), d.get('actor_id'), d.get('status'), d.get('visibility'), d.get('joinOptions'), d.get('draft'), d.get('tags'), d.get('picture'), d.get('onlineAddress'), d.get('phoneAddress'), d.get('category'), d.get('physicalAddress'), d.get('options'), d.get('contacts'), d.get('id'))
 
 class ImportModule(ABC):
-    def __init__(self, modules_config):
-    	self.enabled = modules_config[self.name()]['enabled']
+	def __init__(self, modules_config=None):
+		if modules_config:
+			self.config = modules_config[self.name()]
+			self.enabled = modules_config[self.name()]['enabled']
+		else:
+			self.config = None
+			self.enabled = True
     
-    @abstractmethod
-    def get_events(self):
-    	pass
+	@abstractmethod
+	def get_events(self):
+		pass
 
-    @abstractmethod
-    def name(self):
-    	return None
-   
+	@abstractmethod
+	def name(self):
+		return None
 
+	def get_identity(self):
+		if self.config:
+			return int(self.config['identity'])
+		return 0

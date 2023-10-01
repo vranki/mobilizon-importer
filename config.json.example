@@ -2,9 +2,9 @@
 	"email": "user@host.org",
 	"password": "SECRET",
 	"endpoint": "https://mobilizon.org/api",
-	"identity": 0
+	"identity": 0,
+	"dry_run": true,
 	"modules": {
-		"demopartynet": { "enabled": true }
+		"demopartynet": { "enabled": true, "identity": 0 }
 	}
 }
-

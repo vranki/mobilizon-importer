@@ -5,12 +5,13 @@ Import events from various data sources to Mobilizon
 ## Concept
 
 You can write minimal import modules with python. They can read any data source and output Mobilizon event data.
-The tool then compares existing events and add new ones to Mobilizon and updates any changes. 
+The tool then compares existing events and add new ones to Mobilizon and updates any changes.
 
 ## Modules
 
- * demopartynet: Import demoparty events from demoparty.net RSS feed. 
- 
+* demopartynet: Import demoparty events from demoparty.net RSS feed.
+* tampere_events: Import events from city of Tampere.
+
 Write your own, PR's welcome!
 
 ## Code
@@ -26,13 +27,13 @@ modules/importmodule.py contains the common code for all import modules. You mus
 
 Command line parameters: operation, email, password, endpoint, identity
 
-Operation is one of: 
- * none (display info)
- * deleteall (deletes all events for the identity)
+Operation is one of:
+
+* none (display info including list of identities)
+* deleteall (deletes all events for the identity)
 
 Identity is the identity to use for stuff. Set to 0 to use default identity.
 
 ## Contact
 
 Come to #Mobilizon:matrix.org and ask for cos.
-
