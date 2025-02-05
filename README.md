@@ -11,8 +11,55 @@ The tool then compares existing events and add new ones to Mobilizon and updates
 
 * demopartynet: Import demoparty events from demoparty.net RSS feed.
 * tampere_events: Import events from city of Tampere.
+* (TODO): ical
 
 Write your own, PR's welcome!
+
+## Running
+
+Better use pipenv.
+
+```bash
+pipenv install
+pipenv shell
+```
+
+
+## Configuration
+
+Write a config.json, see config.json.example for example. You can use identity 0 for default identity.
+
+## mobilizon.py tool
+
+### Get account status
+
+```bash
+./mobilizon.py
+```
+
+You'll see identity numbers for your groups. You can use these numbers to do operations as.
+
+### List events
+
+```bash
+./mobilizon.py list [identity]
+```
+
+### Delete ALL events
+
+```bash
+./mobilizon.py deleteall [identity]
+```
+
+### Delete past events
+
+```bash
+./mobilizon.py deletepast [identity]
+```
+
+## mobilizon-importer.py
+
+Will run modules and try to import and update any new events to mobilizon.
 
 ## Code
 
@@ -22,17 +69,6 @@ that can be used to do various admin things.
 mobilizon_importer.py is the main program for importing data. It reads config.json and does the needful.
 
 modules/importmodule.py contains the common code for all import modules. You must inherit your module from this.
-
-## mobilizon.py tool
-
-Command line parameters: operation, email, password, endpoint, identity
-
-Operation is one of:
-
-* none (display info including list of identities)
-* deleteall (deletes all events for the identity)
-
-Identity is the identity to use for stuff. Set to 0 to use default identity.
 
 ## Contact
 

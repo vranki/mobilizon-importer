@@ -4,13 +4,7 @@ import json
 from mobilizon import MobilizonClient
 from modules.demopartynet import DemopartyNet
 from modules.tampere_events import TampereEvents
-
-def is_same_event(event1, event2):
-	if event1.title == event2.title:
-		return True
-	if event1.onlineAddress == event2.onlineAddress:
-		return True
-	return False
+from mobilizon import is_same_event
 
 def events_differ(old, new):
 	old = old.get_dict();
@@ -27,29 +21,31 @@ def events_differ(old, new):
 
 def handle_events(new_events, existing_events):
 	for event in new_events:
-		event.joinOptions = "FREE" # Set for all imported
-		this_existing_event = None
-		for existing_event in existing_events:
-			if is_same_event(event, existing_event):
-				this_existing_event = existing_event
-		if this_existing_event:
-			print('Event already exists:', this_existing_event.id, this_existing_event.title)
-			changed = events_differ(this_existing_event, event)
-			if changed:
-				print('Event data has changed, need to update it!')
-				event.id = this_existing_event.id
-				r = client.update_event(event)
-				print('Updated', r)
-			
+		if event.is_past():
+			print('Ignoring passed event', event.title, 'which was', event.beginsOn)
 		else:
-			print('New event:', event.title)
-			client.create_event_from_dict(event.get_dict())
+			event.joinOptions = "FREE" # Set for all imported
+			this_existing_event = None
+			for existing_event in existing_events:
+				if is_same_event(event, existing_event):
+					this_existing_event = existing_event
+			if this_existing_event:
+				print('Event already exists:', this_existing_event.id, this_existing_event.title)
+				changed = events_differ(this_existing_event, event)
+				if changed:
+					print('Event data has changed, need to update it!')
+					event.id = this_existing_event.id
+					r = client.update_event(event)
+					print('Updated', r)
+				
+			else:
+				print('New event:', event.title, event.beginsOn)
+				client.create_event_from_dict(event.get_dict())
 
 if __name__ == "__main__":
 	config = None
 	with open('config.json') as json_file:
 		config = json.load(json_file)
-	print(config)
 
 	client = MobilizonClient(config["endpoint"])
 

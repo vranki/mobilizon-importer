@@ -15,6 +15,8 @@ import json
 import pytz
 from enum import Enum
 from modules.importmodule import MobilizonEvent
+import datetime
+
 
 # this class has been integrated in Tenacity after 7.0.0 release
 # see https://github.com/jd/tenacity/blame/c18dcfbf4b6a719f668f12fdb4999afaeef62648/tenacity/retry.py#L86
@@ -208,6 +210,21 @@ query {
 }
 
 """)
+
+def is_same_event(event1, event2):
+	same_time = event1.beginsOn == event2.beginsOn # ((event1.beginsOn - event2.beginsOn) < datetime.timedelta(minutes=1))
+	if event1.title == event2.title and event1.onlineAddress == event2.onlineAddress:
+		return True
+	if event1.title == event2.title and same_time:
+		return True
+	if event1.onlineAddress == event2.onlineAddress and same_time:
+		return True
+	
+	if event1.title == event2.title:
+		print('Titles', event1.title, 'begins', event1.beginsOn, event2.beginsOn, (event1.beginsOn - event2.beginsOn))
+
+	return False
+
 
 # Low level Mobilizon API
 class Mobilizon():
@@ -421,11 +438,19 @@ class MobilizonClient():
 		if event.get("picture"):
 			media = { "url": event["picture"] }
 			event["picture"] = media
-		r = Mobilizon(self.endpoint, self.bearer).create_event(actor_id, event)
+		try:
+			r = Mobilizon(self.endpoint, self.bearer).create_event(actor_id, event)
+		except BadRequest as e:
+			print('Creation failed:', e)
+
 		return r['createEvent']
 
 	def delete_event(self, event_id):
-		r = Mobilizon(self.endpoint, self.bearer).delete_event(self.identity, event_id)
+		try:
+			r = Mobilizon(self.endpoint, self.bearer).delete_event(self.identity, event_id)
+		except BadRequest as e:
+			print('Deletion failed:', e)
+			return 0
 		return r['deleteEvent']['id']
 	
 	def update_event(self, event):
@@ -438,14 +463,24 @@ class MobilizonClient():
 
 if __name__ == "__main__":
 	import sys
-	operation = sys.argv[1]
-	email = sys.argv[2]
-	password = sys.argv[3]
-	endpoint = sys.argv[4]
-	identity = int(sys.argv[5])
 
-	client = MobilizonClient(endpoint)
-	client.login(email, password, identity)
+	config = None
+	with open('config.json') as json_file:
+		config = json.load(json_file)
+
+	operation = "status"
+	identity = None
+	main_identity = config["identity"]
+
+	if len(sys.argv) > 1:
+		operation = sys.argv[1]
+	if len(sys.argv) > 2:
+		identity = int(sys.argv[2])
+		print('Using identity', identity)
+
+	client = MobilizonClient(config["endpoint"])
+	client.login(config["email"], config["password"], identity)
+
 	identities = client.identities()
 	print ('Identities:')
 	for id in identities:
@@ -454,10 +489,18 @@ if __name__ == "__main__":
 			client.preferred_username = id['preferredUsername']
 	print('Preferred username:', client.preferred_username)
 	print ('Memberships:', client.memberships())
-	events = client.list_events()
-	print ('Events:')
-	for event in events:
-		print(' - ', event.id, event.title)
-		if operation == 'deleteall':
-			print('Deleting:', client.delete_event(event.id))
-
+	if operation == 'list' or operation == 'deleteall' or operation == 'deletepast' or operation == 'deletedupes':
+		events = client.list_events()
+		print ('Events:')
+		for event in events:
+			print(' - ', event.id, event.title, event.beginsOn)
+			if operation == 'deleteall':
+				print('Deleting event', client.delete_event(event.id))
+			if operation == 'deletepast' and event.is_past():
+				print('Deleting past event', client.delete_event(event.id))
+			if operation == 'deletedupes':
+				for event2 in events:
+					if event.id != event2.id:
+						if is_same_event(event, event2):
+							print(event.title, 'has dupes!', event.beginsOn, event2.beginsOn)
+							print('Deleting second event', client.delete_event(event2.id))

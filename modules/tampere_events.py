@@ -34,6 +34,7 @@ class TampereEvents(ImportModule):
 			id = entry['_id']
 			title = entry['name']
 			description = entry['descriptionLong']
+
 			format = "%Y-%m-%dT%H:%M:%S.%fZ"
 			try:
 				beginsOn = datetime.strptime(entry['defaultStartDate'], format)
@@ -57,10 +58,18 @@ class TampereEvents(ImportModule):
 			if len(entry['locations']) > 0:
 				location = entry['locations'][0]['address']
 
+			#print(entry)
 			print(id, title, description, beginsOn, endsOn, url, location)
 			print('"""""""""""""')
 
 			description = description + f'\n\n{location}'
+
+			if 'hashtags' in entry:
+				tagstring = "\n\n"
+				for tag in entry['hashtags']:
+					tagstring = tagstring + "#" + tag + " "
+
+				description = description + tagstring
 
 			me = MobilizonEvent(title=title, beginsOn=beginsOn, endsOn=endsOn, description=description, onlineAddress=url, visibility="PUBLIC")
 			# PhysicalAddress is AddressInput, no clue how to set it

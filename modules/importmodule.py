@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 from abc import ABC, abstractmethod
+import datetime
+import pytz
 
 class MobilizonEvent:
 	def __init__(self, title, beginsOn, endsOn=None, description="", actor_id=None, status="CONFIRMED", visibility="PRIVATE", joinOptions=None, draft=False, tags=None, picture=None, onlineAddress=None, phoneAddress=None, category=None, physicalAddress=None, options=None, contacts=None, id=None):
@@ -50,7 +52,33 @@ class MobilizonEvent:
 		return filtered_variables
 	@staticmethod
 	def from_dict(d):
-		return MobilizonEvent(d.get('title'), d.get('beginsOn'), d.get('endsOn'), d.get('description'), d.get('actor_id'), d.get('status'), d.get('visibility'), d.get('joinOptions'), d.get('draft'), d.get('tags'), d.get('picture'), d.get('onlineAddress'), d.get('phoneAddress'), d.get('category'), d.get('physicalAddress'), d.get('options'), d.get('contacts'), d.get('id'))
+		return MobilizonEvent(d.get('title'), 
+						datetime.datetime.fromisoformat(d.get('beginsOn')).replace(tzinfo=pytz.UTC),
+						datetime.datetime.fromisoformat(d.get('endsOn')).replace(tzinfo=pytz.UTC),
+						d.get('description'), 
+						d.get('actor_id'), 
+						d.get('status'), 
+						d.get('visibility'), 
+						d.get('joinOptions'), 
+						d.get('draft'), 
+						d.get('tags'), 
+						d.get('picture'), 
+						d.get('onlineAddress'), 
+						d.get('phoneAddress'), 
+						d.get('category'), 
+						d.get('physicalAddress'), 
+						d.get('options'), 
+						d.get('contacts'), 
+						d.get('id'))
+
+	def is_past(self):
+		if self.beginsOn:
+			utc=pytz.UTC
+			now = datetime.datetime.now()
+			begin = self.beginsOn # datetime.datetime.fromisoformat(self.beginsOn)
+			now = utc.localize(now)
+			#begin = utc.localize(begin)
+			return now > begin
 
 class ImportModule(ABC):
 	def __init__(self, modules_config=None):
