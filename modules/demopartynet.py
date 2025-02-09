@@ -4,7 +4,8 @@
 # Import events from demoparty.net
 #
 
-from modules.importmodule import ImportModule, MobilizonEvent
+from modules.importmodule import ImportModule
+from mobilizon import MobilizonEvent
 import requests
 from datetime import datetime
 import json

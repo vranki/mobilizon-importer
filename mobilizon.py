@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
 # Based on snipped by setol at https://framagit.org/-/snippets/6640 - thanks!
@@ -14,7 +13,6 @@ from datetime import datetime
 import json
 import pytz
 from enum import Enum
-from modules.importmodule import MobilizonEvent
 import datetime
 
 
@@ -36,8 +34,8 @@ class BadRequest(Exception):
 # ==== GQL : Events ====
 
 CREATE_GQL = gql("""
-mutation createEvent($organizerActorId: ID!, $attributedToId: ID, $title: String!, $description: String!, $beginsOn: DateTime!, $endsOn: DateTime, $status: EventStatus, $visibility: EventVisibility, $joinOptions: EventJoinOptions, $draft: Boolean, $tags: [String], $picture: MediaInput, $onlineAddress: String, $phoneAddress: String, $category: EventCategory, $physicalAddress: AddressInput, $options: EventOptionsInput, $contacts: [Contact]) {
-  createEvent(organizerActorId: $organizerActorId, attributedToId: $attributedToId, title: $title, description: $description, beginsOn: $beginsOn, endsOn: $endsOn, status: $status, visibility: $visibility, joinOptions: $joinOptions, draft: $draft, tags: $tags, picture: $picture, onlineAddress: $onlineAddress, phoneAddress: $phoneAddress, category: $category, physicalAddress: $physicalAddress, options: $options, contacts: $contacts) {
+mutation createEvent($organizerActorId: ID!, $attributedToId: ID, $title: String!, $description: String!, $beginsOn: DateTime!, $endsOn: DateTime, $status: EventStatus, $visibility: EventVisibility, $joinOptions: EventJoinOptions, $draft: Boolean, $tags: [String], $picture: MediaInput, $onlineAddress: String, $phoneAddress: String, $category: EventCategory, $physicalAddress: AddressInput, $options: EventOptionsInput, $contacts: [Contact], $externalParticipationUrl: String) {
+  createEvent(organizerActorId: $organizerActorId, attributedToId: $attributedToId, title: $title, description: $description, beginsOn: $beginsOn, endsOn: $endsOn, status: $status, visibility: $visibility, joinOptions: $joinOptions, draft: $draft, tags: $tags, picture: $picture, onlineAddress: $onlineAddress, phoneAddress: $phoneAddress, category: $category, physicalAddress: $physicalAddress, options: $options, contacts: $contacts, externalParticipationUrl: $externalParticipationUrl) {
 	id
 	uuid
 	url
@@ -46,8 +44,8 @@ mutation createEvent($organizerActorId: ID!, $attributedToId: ID, $title: String
 """)
 
 UPDATE_GQL = gql("""
-mutation updateEvent($id: ID!, $title: String, $description: String, $beginsOn: DateTime, $endsOn: DateTime, $status: EventStatus, $visibility: EventVisibility, $joinOptions: EventJoinOptions, $draft: Boolean, $tags: [String], $onlineAddress: String, $phoneAddress: String, $organizerActorId: ID, $attributedToId: ID, $category: EventCategory, $physicalAddress: AddressInput, $options: EventOptionsInput, $contacts: [Contact]) {
-  updateEvent(eventId: $id, title: $title, description: $description, beginsOn: $beginsOn, endsOn: $endsOn, status: $status, visibility: $visibility, joinOptions: $joinOptions, draft: $draft, tags: $tags, onlineAddress: $onlineAddress, phoneAddress: $phoneAddress, organizerActorId: $organizerActorId, attributedToId: $attributedToId, category: $category, physicalAddress: $physicalAddress, options: $options, contacts: $contacts) {
+mutation updateEvent($id: ID!, $title: String, $description: String, $beginsOn: DateTime, $endsOn: DateTime, $status: EventStatus, $visibility: EventVisibility, $joinOptions: EventJoinOptions, $draft: Boolean, $tags: [String], $onlineAddress: String, $phoneAddress: String, $organizerActorId: ID, $attributedToId: ID, $category: EventCategory, $physicalAddress: AddressInput, $options: EventOptionsInput, $contacts: [Contact], $externalParticipationUrl: String) {
+  updateEvent(eventId: $id, title: $title, description: $description, beginsOn: $beginsOn, endsOn: $endsOn, status: $status, visibility: $visibility, joinOptions: $joinOptions, draft: $draft, tags: $tags, onlineAddress: $onlineAddress, phoneAddress: $phoneAddress, organizerActorId: $organizerActorId, attributedToId: $attributedToId, category: $category, physicalAddress: $physicalAddress, options: $options, contacts: $contacts, externalParticipationUrl: $externalParticipationUrl) {
 	id
 	uuid
   }
@@ -200,9 +198,10 @@ query {
           onlineAddress
           phoneAddress
           category
-          physicalAddress {country}
-          options {isOnline}
+          physicalAddress {description, country, street, locality, postalCode, geom}
+          options {isOnline, showRemainingAttendeeCapacity, maximumAttendeeCapacity, remainingAttendeeCapacity}
           contacts {name}
+		  externalParticipationUrl
         }
       }
     }
@@ -211,19 +210,107 @@ query {
 
 """)
 
-def is_same_event(event1, event2):
-	same_time = event1.beginsOn == event2.beginsOn # ((event1.beginsOn - event2.beginsOn) < datetime.timedelta(minutes=1))
-	if event1.title == event2.title and event1.onlineAddress == event2.onlineAddress:
-		return True
-	if event1.title == event2.title and same_time:
-		return True
-	if event1.onlineAddress == event2.onlineAddress and same_time:
-		return True
-	
-	if event1.title == event2.title:
-		print('Titles', event1.title, 'begins', event1.beginsOn, event2.beginsOn, (event1.beginsOn - event2.beginsOn))
 
-	return False
+class MobilizonEvent:
+	def __init__(self, title, beginsOn, endsOn=None, description="", actor_id=None, status="CONFIRMED", visibility="PRIVATE", joinOptions=None, draft=False, tags=None, picture=None, onlineAddress=None, phoneAddress=None, category=None, physicalAddress=None, options=None, contacts=None, id=None, externalParticipationUrl=None):
+
+		if not endsOn:
+			endsOn = beginsOn
+		self.id = id
+		self.title = title
+		self.beginsOn = beginsOn
+		self.endsOn = endsOn
+		self.description = description
+		self.actor_id = actor_id
+		self.status=status
+		self.visibility=visibility
+		self.joinOptions=joinOptions
+		self.draft=draft
+		self.tags=tags
+		self.picture=picture
+		self.onlineAddress=onlineAddress
+		self.phoneAddress=phoneAddress
+		self.category=category
+		self.physicalAddress=physicalAddress
+		self.options=options
+		self.contacts=contacts
+		self.externalParticipationUrl=externalParticipationUrl
+
+	def get_dict(self):
+		variables = {
+			"id": self.id, 
+			"title": self.title, 
+			"description": self.description,
+			"beginsOn": self.beginsOn,
+			"endsOn": self.endsOn,
+			"status": self.status, # CANCELLED / CONFIRMED / TENTATIVE
+			"visibility": self.visibility, # PRIVATE, PUBLIC, RESTRICTED, UNLISTED
+			"joinOptions": self.joinOptions,
+			"draft": self.draft,
+			"tags": self.tags,
+			"picture": self.picture,
+			"onlineAddress": self.onlineAddress,
+			"phoneAddress": self.phoneAddress,
+			"category": self.category,
+			"physicalAddress": self.physicalAddress,
+			"options": self.options,
+			"contacts": self.contacts,
+			"externalParticipationUrl": self.externalParticipationUrl
+		}
+		filtered_variables = {k: v for k, v in variables.items() if v is not None}
+		return filtered_variables
+
+	@staticmethod
+	def from_dict(d):
+		return MobilizonEvent(d.get('title'), 
+						datetime.datetime.fromisoformat(d.get('beginsOn')).replace(tzinfo=pytz.UTC),
+						datetime.datetime.fromisoformat(d.get('endsOn')).replace(tzinfo=pytz.UTC),
+						d.get('description'), 
+						d.get('actor_id'), 
+						d.get('status'), 
+						d.get('visibility'), 
+						d.get('joinOptions'), 
+						d.get('draft'), 
+						d.get('tags'), 
+						d.get('picture'), 
+						d.get('onlineAddress'), 
+						d.get('phoneAddress'), 
+						d.get('category'), 
+						d.get('physicalAddress'), 
+						d.get('options'), 
+						d.get('contacts'), 
+						d.get('id'), 
+						d.get('externalParticipationUrl'))
+
+	def is_past(self):
+		if self.beginsOn:
+			utc=pytz.UTC
+			now = datetime.datetime.now()
+			begin = self.beginsOn # datetime.datetime.fromisoformat(self.beginsOn)
+			now = utc.localize(now)
+			#begin = utc.localize(begin)
+			return now > begin
+
+	def print_event(self):
+		print(f'[ {self.title} ]')
+		print(f'Begins {self.beginsOn} - Ends {self.endsOn} - Duration {self.endsOn - self.beginsOn}')
+		print(f'URL {self.onlineAddress} participation {self.externalParticipationUrl}')
+		print(f'{self.description}')
+		print(f'Address: {self.physicalAddress}')
+		print(f'Options:', {json.dumps(self.options)})
+		print(f'Picture:', {json.dumps(self.picture)})
+
+	def is_same_event_as(self, event2):
+		same_time = self.beginsOn == event2.beginsOn
+		if self.title == event2.title and self.onlineAddress == event2.onlineAddress:
+			return True
+		if self.title == event2.title and same_time:
+			return True
+		if self.onlineAddress == event2.onlineAddress and same_time:
+			return True
+		
+		return False
+
 
 
 # Low level Mobilizon API
@@ -401,7 +488,7 @@ class MobilizonClient():
 		
 		return events
 
-	def create_event(self, title, beginsOn, endsOn=None, description="", actor_id=None, status="CONFIRMED", visibility="PRIVATE", joinOptions=None, draft=False, tags=None, picture=None, onlineAddress=None, phoneAddress=None, category=None, physicalAddress=None, options=None, contacts=None):
+	def create_event(self, title, beginsOn, endsOn=None, description="", actor_id=None, status="CONFIRMED", visibility="PRIVATE", joinOptions=None, draft=False, tags=None, picture=None, onlineAddress=None, phoneAddress=None, category=None, physicalAddress=None, options=None, contacts=None, externalParticipationUrl=None):
 		if not actor_id:
 			actor_id = self.identity
 		if not endsOn:
@@ -422,7 +509,8 @@ class MobilizonClient():
 			"category": category,
 			"physicalAddress": physicalAddress,
 			"options": options,
-			"contacts": contacts
+			"contacts": contacts,
+			"externalParticipationUrl": externalParticipationUrl
 		}
 		filtered_variables = {k: v for k, v in variables.items() if v is not None}
 		r = Mobilizon(self.endpoint, self.bearer).create_event(actor_id, filtered_variables)
@@ -442,6 +530,11 @@ class MobilizonClient():
 			r = Mobilizon(self.endpoint, self.bearer).create_event(actor_id, event)
 		except BadRequest as e:
 			print('Creation failed:', e)
+			print(json.dumps(event))
+			ejson = json.loads(str(e).replace("'", '"'))
+			print('E Code:', ejson["code"])
+			if ejson["code"] == 'validation':
+				return None
 
 		return r['createEvent']
 
@@ -459,48 +552,3 @@ class MobilizonClient():
 		variables["endsOn"] = variables["endsOn"].isoformat()
 		r = Mobilizon(self.endpoint, self.bearer).update_event(self.identity, variables)
 		return r['updateEvent']['id']
-
-
-if __name__ == "__main__":
-	import sys
-
-	config = None
-	with open('config.json') as json_file:
-		config = json.load(json_file)
-
-	operation = "status"
-	identity = None
-	main_identity = config["identity"]
-
-	if len(sys.argv) > 1:
-		operation = sys.argv[1]
-	if len(sys.argv) > 2:
-		identity = int(sys.argv[2])
-		print('Using identity', identity)
-
-	client = MobilizonClient(config["endpoint"])
-	client.login(config["email"], config["password"], identity)
-
-	identities = client.identities()
-	print ('Identities:')
-	for id in identities:
-		print(' - ', id['id'], id['preferredUsername'])
-		if int(id['id']) == client.identity:
-			client.preferred_username = id['preferredUsername']
-	print('Preferred username:', client.preferred_username)
-	print ('Memberships:', client.memberships())
-	if operation == 'list' or operation == 'deleteall' or operation == 'deletepast' or operation == 'deletedupes':
-		events = client.list_events()
-		print ('Events:')
-		for event in events:
-			print(' - ', event.id, event.title, event.beginsOn)
-			if operation == 'deleteall':
-				print('Deleting event', client.delete_event(event.id))
-			if operation == 'deletepast' and event.is_past():
-				print('Deleting past event', client.delete_event(event.id))
-			if operation == 'deletedupes':
-				for event2 in events:
-					if event.id != event2.id:
-						if is_same_event(event, event2):
-							print(event.title, 'has dupes!', event.beginsOn, event2.beginsOn)
-							print('Deleting second event', client.delete_event(event2.id))

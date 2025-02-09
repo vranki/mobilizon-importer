@@ -1,10 +1,25 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import json
-from mobilizon import MobilizonClient
 from modules.demopartynet import DemopartyNet
 from modules.tampere_events import TampereEvents
-from mobilizon import is_same_event
+from mobilizon import MobilizonEvent, MobilizonClient
+import argparse
+
+# Compare two dicts
+def dict_differs(d1, d2):
+	for k1, v1 in d1.items():
+		val1 = v1
+		if not val1:
+			val1 = ""
+		val2 = d2[k1]
+		if not val2:
+			val2 = ""
+		if val1 != val2:
+#			print('Dicts differ', k1, v1, 'but in second', k1, d2[k1])
+			return True
+#	print('Dicts are equal', d1, d2)
+	return False
 
 def events_differ(old, new):
 	old = old.get_dict();
@@ -14,20 +29,26 @@ def events_differ(old, new):
 
 	for key in new.keys():
 		if key not in ignore_keys:
-			if old.get(key) != new.get(key):
-				print('Key', key, 'differs:', old.get(key), ' -> ', new.get(key))
-				return True
+			if isinstance(old.get(key), dict):
+				if dict_differs(old.get(key), new.get(key)):
+					return True
+			else:
+				if old.get(key) != new.get(key):
+					print('Key', key, 'differs:', old.get(key), ' -> ', new.get(key))
+					return True
 	return False
 
-def handle_events(new_events, existing_events):
+def handle_events(new_events, existing_events, limit):
+	handled_events = 0
+	if limit == 0:
+		limit = 99999999
 	for event in new_events:
 		if event.is_past():
 			print('Ignoring passed event', event.title, 'which was', event.beginsOn)
 		else:
-			event.joinOptions = "FREE" # Set for all imported
 			this_existing_event = None
 			for existing_event in existing_events:
-				if is_same_event(event, existing_event):
+				if event.is_same_event_as(existing_event):
 					this_existing_event = existing_event
 			if this_existing_event:
 				print('Event already exists:', this_existing_event.id, this_existing_event.title)
@@ -37,10 +58,14 @@ def handle_events(new_events, existing_events):
 					event.id = this_existing_event.id
 					r = client.update_event(event)
 					print('Updated', r)
-				
+					handled_events = handled_events + 1			
 			else:
 				print('New event:', event.title, event.beginsOn)
 				client.create_event_from_dict(event.get_dict())
+				handled_events = handled_events + 1
+		if handled_events >= limit:
+			print('Reached limit of', limit, 'events, stopping..')
+			break
 
 if __name__ == "__main__":
 	config = None
@@ -50,7 +75,12 @@ if __name__ == "__main__":
 	client = MobilizonClient(config["endpoint"])
 
 	dpn = DemopartyNet(config['modules'])
-	te = TampereEvents(config['modules'])
+	te  = TampereEvents(config['modules'])
+
+	parser = argparse.ArgumentParser(prog="Mobilizon Importer")
+	parser.add_argument('-t', '--test', type=str)
+	parser.add_argument('-l', '--limit', type=int, default=0)
+	args = parser.parse_args()
 
 	modules = []
 	if dpn.enabled:
@@ -62,7 +92,13 @@ if __name__ == "__main__":
 		identity = module.get_identity()
 		print('Handling module', module.name(), 'as', identity, '..')
 		client.login(config["email"], config["password"], identity)
-		existing_events = client.list_events()
+
 		events = module.get_events()
-		if not config['dry_run']:
-			handle_events(events, existing_events)
+
+		if args.test == 'list':
+			for event in events:
+				event.print_event()
+		else:
+			existing_events = client.list_events()
+			if not config['dry_run']:
+				handle_events(events, existing_events, args.limit)
