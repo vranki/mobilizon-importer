@@ -14,7 +14,7 @@ import json
 import pytz
 from enum import Enum
 import datetime
-
+import logging
 
 # this class has been integrated in Tenacity after 7.0.0 release
 # see https://github.com/jd/tenacity/blame/c18dcfbf4b6a719f668f12fdb4999afaeef62648/tenacity/retry.py#L86
@@ -150,6 +150,13 @@ LOGOUT_GQL = gql("""
 mutation logout($rt: String!) {
   logout(refreshToken: $rt)
 }""")
+
+# File upload
+UPLOAD_GQL = gql("""
+mutation uploadMedia($file: Upload!, $name: String!) {
+  uploadMedia(file: $file, name: $name) { id }
+}""")
+
 
 # ==== /GQL : credentials ====
 
@@ -422,9 +429,14 @@ class Mobilizon():
 				return actor['organizedEvents']['elements']
 		return []
 
+	# files
+	def upload_file(self, filehandle, filename):
+		params = {"file": filehandle, "name": filename}
+		filehandle.content_type = "image/jpg"
+		result = self.client.execute(UPLOAD_GQL, variable_values=params, upload_files=True)
+		print('Upload result:', result)
 
 	# interns
-
 	def _build_client(self, endpoint, bearer=None):
 		headers = dict()
 		if bearer is not None:
@@ -462,6 +474,7 @@ class MobilizonClient():
 		self.bearer = bearer
 		self.identity = 0
 		self.preferred_username = None
+		logging.basicConfig(level=logging.DEBUG)
 
 	def login(self, email, password, identity=0):
 		r = Mobilizon(self.endpoint, self.bearer).login(email, password)
@@ -552,3 +565,9 @@ class MobilizonClient():
 		variables["endsOn"] = variables["endsOn"].isoformat()
 		r = Mobilizon(self.endpoint, self.bearer).update_event(self.identity, variables)
 		return r['updateEvent']['id']
+
+	def upload_file(self, filename):
+		with open(filename, "rb") as f:
+			print('File is', f)
+			r = Mobilizon(self.endpoint, self.bearer).upload_file(f, filename)
+		print(r)

@@ -5,6 +5,6 @@
 	"identity": 0,
 	"dry_run": true,
 	"modules": {
-		"demopartynet": { "enabled": true, "identity": 0 }
+		"demopartynet": { "enabled": false, "identity": 0, "maxduration": 200, "maxfuture": 1500 },
 	}
 }

@@ -17,8 +17,9 @@ if __name__ == "__main__":
 	main_identity = config["identity"]
 
 	parser = argparse.ArgumentParser(prog="Mobilizon Tool")
-	parser.add_argument('operation', default="status", choices=["status", "list", "deleteall", "deletepast", "deletedupes"])
+	parser.add_argument('operation', default="status", choices=["status", "list", "deleteall", "deletepast", "deletedupes", "upload"])
 	parser.add_argument('-i', '--identity', type=int)
+	parser.add_argument('-f', '--file', type=str)
 	args = parser.parse_args()
 	operation = args.operation
 	identity = args.identity
@@ -57,3 +58,5 @@ if __name__ == "__main__":
 						if event.is_same_event_as(event2):
 							print(event.title, 'has dupes!', event.beginsOn, event2.beginsOn)
 							print('Deleting second event', client.delete_event(event2.id))
+	elif operation == 'upload':
+		client.upload_file(args.file)
