@@ -3,6 +3,7 @@
 import json
 from modules.demopartynet import DemopartyNet
 from modules.tampere_events import TampereEvents
+from modules.ical_calendar import IcalCalendar
 from mobilizon import MobilizonEvent, MobilizonClient
 import argparse
 
@@ -12,12 +13,16 @@ def dict_differs(d1, d2):
 		val1 = v1
 		if not val1:
 			val1 = ""
-		val2 = d2[k1]
-		if not val2:
-			val2 = ""
-		if val1 != val2:
-#			print('Dicts differ', k1, v1, 'but in second', k1, d2[k1])
-			return True
+		try:
+			val2 = d2[k1]
+			if not val2:
+				val2 = ""
+			if val1 != val2:
+	#			print('Dicts differ', k1, v1, 'but in second', k1, d2[k1])
+				return True
+		except KeyError:
+			if len(val1) > 0:
+				return True
 #	print('Dicts are equal', d1, d2)
 	return False
 
@@ -74,31 +79,42 @@ if __name__ == "__main__":
 
 	client = MobilizonClient(config["endpoint"])
 
-	dpn = DemopartyNet(config['modules'])
-	te  = TampereEvents(config['modules'])
+	modules = []
+
+	for module in config['modules']:
+		print('Module', module)
+		if module['module'] == 'demopartynet':
+			modules.append(DemopartyNet(module))
+		if module['module'] == 'tampere_events':
+			modules.append(TampereEvents(module))
+		if module['module'] == 'ical_calendar':
+			modules.append(IcalCalendar(module))
 
 	parser = argparse.ArgumentParser(prog="Mobilizon Importer")
 	parser.add_argument('-t', '--test', type=str)
 	parser.add_argument('-l', '--limit', type=int, default=0)
 	args = parser.parse_args()
 
-	modules = []
-	if dpn.enabled:
-		modules.append(dpn)
-	if te.enabled:
-		modules.append(te)
-
 	for module in modules:
+		if not module.enabled:
+			continue
 		identity = module.get_identity()
-		print('Handling module', module.name(), 'as', identity, '..')
-		client.login(config["email"], config["password"], identity)
+		attributed_to = module.get_attributedto()
+		print('Handling module', module.name(), 'as', identity, 'attributed to', attributed_to, '..')
+		client.login(config["email"], config["password"], identity, attributed_to)
 
 		events = module.get_events()
 
-		if args.test == 'list':
+		if args.test == 'list_module':
 			for event in events:
 				event.print_event()
 		else:
 			existing_events = client.list_events()
+			if args.test == 'list_mobilizon':
+				for event in existing_events:
+					# event.print_event()
+					print(event.get_dict())
+				continue
+
 			if not config['dry_run']:
 				handle_events(events, existing_events, args.limit)

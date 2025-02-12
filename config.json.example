@@ -4,7 +4,12 @@
 	"endpoint": "https://mobilizon.org/api",
 	"identity": 0,
 	"dry_run": true,
-	"modules": {
-		"demopartynet": { "enabled": false, "identity": 0, "maxduration": 200, "maxfuture": 1500 },
-	}
+	"modules": [
+		{ "module": "demopartynet", "enabled": false, "identity": 0, "maxduration": 200, "maxfuture": 1500 },
+		{ "module": "ical_calendar", "enabled": false, "identity": 0, 
+			"ics_url": "https://nc.tampere.hacklab.fi/remote.php/dav/public-calendars/NFZcQytLBrsA8afg/?export", 
+			"participation_url": "https://tampere.hacklab.fi/",
+			"image_url": "https://tampere.hacklab.fi/static/img/logo.svg"
+		}
+	]
 }

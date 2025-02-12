@@ -473,13 +473,15 @@ class MobilizonClient():
 		self.endpoint = endpoint
 		self.bearer = bearer
 		self.identity = 0
+		self.attributedto = 0
 		self.preferred_username = None
-		logging.basicConfig(level=logging.DEBUG)
+		# logging.basicConfig(level=logging.DEBUG)
 
-	def login(self, email, password, identity=0):
+	def login(self, email, password, identity=0, attributed_to=None):
 		r = Mobilizon(self.endpoint, self.bearer).login(email, password)
 		self.bearer = r[0]
 		self.set_identity(identity)
+		self.attributedto = attributed_to
 	
 	def set_identity(self, identity=0):
 		self.identity = identity
@@ -525,6 +527,9 @@ class MobilizonClient():
 			"contacts": contacts,
 			"externalParticipationUrl": externalParticipationUrl
 		}
+		if self.attributedto:
+			variables["attributedToId"] = self.attributedto
+
 		filtered_variables = {k: v for k, v in variables.items() if v is not None}
 		r = Mobilizon(self.endpoint, self.bearer).create_event(actor_id, filtered_variables)
 		return r['createEvent']
@@ -534,6 +539,8 @@ class MobilizonClient():
 			actor_id = self.identity
 		event["beginsOn"] = event["beginsOn"].isoformat()
 		event["endsOn"] = event["endsOn"].isoformat()
+		if self.attributedto:
+			event["attributedToId"] = self.attributedto
 		
 		# TODO: Doesn't work! Don't use picture.
 		if event.get("picture"):
@@ -561,6 +568,8 @@ class MobilizonClient():
 	
 	def update_event(self, event):
 		variables = event.get_dict()
+		if self.attributedto:
+			variables["attributedToId"] = self.attributedto
 		variables["beginsOn"] = variables["beginsOn"].isoformat()
 		variables["endsOn"] = variables["endsOn"].isoformat()
 		r = Mobilizon(self.endpoint, self.bearer).update_event(self.identity, variables)

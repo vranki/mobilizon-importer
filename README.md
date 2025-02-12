@@ -11,7 +11,7 @@ The tool then compares existing events and add new ones to Mobilizon and updates
 
 * demopartynet: Import demoparty events from demoparty.net RSS feed.
 * tampere_events: Import events from city of Tampere.
-* (TODO): ical
+* ical: Standard ical format calendar
 
 Write your own, PR's welcome!
 
@@ -34,7 +34,7 @@ Write a config.json, see config.json.example for example. You can use identity 0
 ### Get account status
 
 ```bash
-./mobilizon.py
+./mobilizon_tool.py status
 ```
 
 You'll see identity numbers for your groups. You can use these numbers to do operations as.
@@ -42,19 +42,19 @@ You'll see identity numbers for your groups. You can use these numbers to do ope
 ### List events
 
 ```bash
-./mobilizon.py list [identity]
+./mobilizon_tool.py list [identity]
 ```
 
 ### Delete ALL events
 
 ```bash
-./mobilizon.py deleteall [identity]
+./mobilizon_tool.py deleteall [identity]
 ```
 
 ### Delete past events
 
 ```bash
-./mobilizon.py deletepast [identity]
+./mobilizon_tool.py deletepast [identity]
 ```
 
 ## mobilizon-importer.py

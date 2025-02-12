@@ -3,17 +3,22 @@
 from abc import ABC, abstractmethod
 
 class ImportModule(ABC):
-	def __init__(self, modules_config=None):
-		if modules_config:
-			self.config = modules_config[self.name()]
-			self.enabled = modules_config[self.name()]['enabled']
-			self.maxduration = modules_config[self.name()]['maxduration']
-			self.maxfuture = modules_config[self.name()]['maxfuture']
+	def __init__(self, config=None):
+		self.maxduration = 999999
+		self.maxfuture = 9999999
+		self.attributed_to = None
+		if config:
+			self.config = config
+			self.enabled = self.config['enabled']
+			if 'maxduration' in self.config:
+				self.maxduration = self.config['maxduration']
+			if 'maxfuture' in self.config:
+				self.maxfuture = self.config['maxfuture']
+			if 'attributedto' in self.config:
+				self.attributed_to = self.config['attributedto']
 		else:
 			self.config = None
 			self.enabled = True
-			self.maxduration = 999999
-			self.maxfuture = 9999999
     
 	@abstractmethod
 	def get_events(self):
@@ -27,3 +32,8 @@ class ImportModule(ABC):
 		if self.config:
 			return int(self.config['identity'])
 		return 0
+
+	def get_attributedto(self):
+		if self.attributed_to:
+			return self.attributed_to
+		return self.get_identity
