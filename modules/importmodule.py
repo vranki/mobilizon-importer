@@ -36,4 +36,4 @@ class ImportModule(ABC):
 	def get_attributedto(self):
 		if self.attributed_to:
 			return self.attributed_to
-		return self.get_identity
+		return self.get_identity()

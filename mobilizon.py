@@ -248,8 +248,8 @@ class MobilizonEvent:
 			"id": self.id, 
 			"title": self.title, 
 			"description": self.description,
-			"beginsOn": self.beginsOn,
-			"endsOn": self.endsOn,
+			"beginsOn": self.beginsOn.isoformat(),
+			"endsOn": self.endsOn.isoformat(),
 			"status": self.status, # CANCELLED / CONFIRMED / TENTATIVE
 			"visibility": self.visibility, # PRIVATE, PUBLIC, RESTRICTED, UNLISTED
 			"joinOptions": self.joinOptions,
@@ -511,8 +511,8 @@ class MobilizonClient():
 		variables = {
 			"title": title, 
 			"description": description,
-			"beginsOn": beginsOn.isoformat(),
-			"endsOn": endsOn.isoformat(),
+			"beginsOn": beginsOn,
+			"endsOn": endsOn,
 			"status": status, # CANCELLED / CONFIRMED / TENTATIVE
 			"visibility": visibility, # PRIVATE, PUBLIC, RESTRICTED, UNLISTED
 			"joinOptions": joinOptions,
@@ -537,8 +537,7 @@ class MobilizonClient():
 	def create_event_from_dict(self, event, actor_id=None):
 		if not actor_id:
 			actor_id = self.identity
-		event["beginsOn"] = event["beginsOn"].isoformat()
-		event["endsOn"] = event["endsOn"].isoformat()
+
 		if self.attributedto:
 			event["attributedToId"] = self.attributedto
 		
